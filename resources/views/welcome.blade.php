@@ -179,76 +179,109 @@
     </head>
     <body id="chat">    
         <div id="live_chat">
-            <header class="mdl-layout__header mdl-color--blue-grey-900 mdl-color-text--blue-grey-50">
-                <div class="mdl-layout__header-row" style="padding-left: 40px; padding-right: 40px;">
-                    <span class="mdl-layout-title">Live Chat</span>
+            <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
+                <header class="mdl-layout__header mdl-color--blue-grey-900 mdl-color-text--blue-grey-50">
+                    <div class="mdl-layout__header-row" style="padding-left: 40px; padding-right: 40px;">
+                        <span class="mdl-layout-title">Live Chat</span>
 
-                    <div class="mdl-layout-spacer"></div>
+                        <div class="mdl-layout-spacer"></div>
 
-                    <button class="mdl-button mdl-js-button mdl-js-ripple-effect mdl-button--icon" id="hdrbtn">
-                        <i class="material-icons">more_vert</i>
-                    </button>
-                    <ul class="mdl-menu mdl-js-menu mdl-js-ripple-effect mdl-menu--bottom-right" for="hdrbtn">
-                        <li class="mdl-menu__item">Pop Out</li>
-                    </ul>
-                </div>
-            </header>
-            <main>
-                <div id="inner" class="inner">
-                    <div id="content" class="content">
-                        <div class="message-wrapper them" v-repeat="message: messages">
-                            <div class="circle-wrapper"></div>
-                            <div class="text-wrapper">@{{ message }}</div>
+                        <button class="mdl-button mdl-js-button mdl-js-ripple-effect mdl-button--icon" id="hdrbtn">
+                            <i class="material-icons">more_vert</i>
+                        </button>
+                        <ul class="mdl-menu mdl-js-menu mdl-js-ripple-effect mdl-menu--bottom-right" for="hdrbtn">
+                            <li class="mdl-menu__item">Show User List</li>
+                            <li class="mdl-menu__item">Pop Out</li>
+                        </ul>
+                    </div>
+                </header>
+                <main>
+                    <div id="inner" class="inner">
+                        <div id="users"></div>
+                        <div id="content" class="content">
+                            <div class="message-wrapper them" v-repeat="message: messages">
+                                <div class="circle-wrapper"></div>
+                                <div class="text-wrapper">@{{ message }}</div>
+                            </div>
+                            <div id="loader" class="mdl-spinner mdl-js-spinner is-active" style="width: 50px; height: 50px;"></div>
                         </div>
                     </div>
-                </div>
-                <form id="bottom" class="bottom" v-on="submit: send">
-                    <div class="chat_message mdl-textfield mdl-js-textfield">
-                        <input type="text" class="mdl-textfield__input" id="message" placeholder="message..." rows="1" v-model="message">
-                    </div>
-                    <button id="send" class="send"></button>
-                </form>
-            </main>
+                    <form id="bottom" class="bottom" v-on="submit: send">
+                        <div class="chat_message mdl-textfield mdl-js-textfield">
+                            <input type="text" class="mdl-textfield__input" id="message" placeholder="message..." rows="1" v-model="message">
+                        </div>
+                        <button id="send" class="send"></button>
+                    </form>
+                </main>
+            </div>
         </div>
 
 
 
         <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.7/socket.io.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/0.12.15/vue.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0-alpha1/jquery.min.js"></script>
 
         <script>
             var socket = io('http://larachat.dev:3000');
+            var channel = "SOME_CHANNEL"
+            var userId  = "1"
+            var userName = "SOME_NAME"
+
+            var $chatUsers = $("#users");
+
+            var $cont = $('.inner');
+            $cont[0].scrollTop = $cont[0].scrollHeight;
+
+            $('#message').keyup(function(e) {
+                if (e.keyCode == 13) {
+                    $cont[0].scrollTop = $cont[0].scrollHeight;
+                    $(this).val('');
+                }
+            }).focus();
 
             new Vue({
+
                 el: '#chat',
 
                 data: {
                     messages: [],
-                    message: ''
+                    message: null
                 },
 
                 ready: function() {
 
-                    // recieves payload from socket.io
-                    socket.on('some_channel', function(payload) {
+                    socket.on('connect', function(user) {
+                        console.log('connected');
+                        $("#loader").remove();
+                        socket.emit('join', {'channel': 'chat.' + channel, 'id': userId, 'name': userName});
+                    });
 
-                        // push the current message onto the chat
+                    socket.on('chat.' + channel, function(payload) {
                         this.messages.push(payload[2]);
+                    }.bind(this));
 
-                    }.bind(this))
+                    socket.on('chat.' + channel + '.users', function(names) {
+                        console.log(names);
+
+                        var html = "";
+
+                        $.each(names, function(index, value) {
+                            html += '<li>' + value.name + '</li>'
+                        });
+
+                        $chatUsers.html(html);
+                    });
                 },
 
                 methods: {
 
-                    // sends message to socket.io
                     send: function(e) {
-
-                        // prepare a payload
-                        var payload = ['some_channel', 'Craytor', this.message];
-
-                        // send the payload to socket.io
-                        socket.emit('chat', payload);
-
+                        var payload = [channel, 'Craytor', this.message];
+                        if(this.message !== null) {
+                            socket.emit('chat', payload);
+                        }
+                        this.message = null;
                         e.preventDefault();
                     }
                 }
