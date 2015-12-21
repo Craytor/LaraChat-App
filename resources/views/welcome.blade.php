@@ -199,10 +199,24 @@
                     <div id="inner" class="inner">
                         <div id="users"></div>
                         <div id="content" class="content">
-                            <div class="message-wrapper them" v-repeat="message: messages">
+
+                            <div class="vue-chat-wrapper" v-repeat="message: messages">
+                                <div class="message-wrapper me" v-if="isPoster(message[0])">
+                                    <div class="circle-wrapper"></div>
+                                    <div class="text-wrapper">@{{ message[1] }}</div>
+                                </div>
+                                <div class="message-wrapper them" v-if="!isPoster(message[0])">
+                                    <div class="circle-wrapper"></div>
+                                    <div class="text-wrapper">@{{ message[1] }}</div>
+                                </div>
+                            </div>
+                            
+
+                            <!-- <div class="message-wrapper them" v-else v-repeat="message: messages[2]">
                                 <div class="circle-wrapper"></div>
                                 <div class="text-wrapper">@{{ message }}</div>
-                            </div>
+                            </div> -->
+
                             <div id="loader" class="mdl-spinner mdl-js-spinner is-active" style="width: 50px; height: 50px;"></div>
                         </div>
                     </div>
@@ -225,7 +239,7 @@
         <script>
             var socket = io('http://larachat.dev:3000');
             var channel = "SOME_CHANNEL"
-            var userId  = "1"
+            var userId  = "2"
             var userName = "SOME_NAME"
 
             var $chatUsers = $("#users");
@@ -246,7 +260,8 @@
 
                 data: {
                     messages: [],
-                    message: null
+                    message: null,
+                    userId: userId
                 },
 
                 ready: function() {
@@ -258,7 +273,7 @@
                     });
 
                     socket.on('chat.' + channel, function(payload) {
-                        this.messages.push(payload[2]);
+                        this.messages.push([payload[1], payload[2]]);
                     }.bind(this));
 
                     socket.on('chat.' + channel + '.users', function(names) {
@@ -277,12 +292,20 @@
                 methods: {
 
                     send: function(e) {
-                        var payload = [channel, 'Craytor', this.message];
+                        var payload = [channel, userId, this.message];
                         if(this.message !== null) {
                             socket.emit('chat', payload);
                         }
                         this.message = null;
                         e.preventDefault();
+                    },
+
+                    isPoster: function(id) {
+                        if(userId === id) {
+                            return true;
+                        }
+
+                        return false;
                     }
                 }
 
