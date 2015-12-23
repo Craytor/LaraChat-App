@@ -31,6 +31,10 @@ io.on('connection', function(socket) {
 			'socketId': socket.id,
 		};
 
+		console.log(user.channel);
+
+		io.emit(user.channel + '.notifications', user.name + ' has connected.');
+
 		// console.log(user.channel);
 		// console.log(user.name);
 		// console.log(user.id);
@@ -56,7 +60,10 @@ io.on('connection', function(socket) {
 
 			updateNames();
 
+			console.log(user.name);
+
 			console.info('[' + time + '] ' + user.name + ' has disconnected from ' + user.channel);
+			io.emit(user.channel + '.notifications', user.name + ' has disconnected.');
 		});
 
 

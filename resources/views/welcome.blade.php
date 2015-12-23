@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Laravel</title>
+        <title>LaraChat</title>
 
         <link rel="stylesheet" href="https://storage.googleapis.com/code.getmdl.io/1.0.6/material.indigo-pink.min.css">
         <link href="http://c3js.org/css/c3-b03125fa.css" media="screen" rel="stylesheet" type="text/css" />
@@ -26,7 +26,7 @@
                 height: calc(50% - 160px);
                 -ms-overflow-style: none;
                 overflow: -moz-scrollbars-none;*/
-                max-height: calc(100% - 64px);
+                height: calc(100% - 120px);
                 overflow-y: scroll;
             }
     /*
@@ -175,6 +175,14 @@
                 resize: none;
                 border-bottom: 0px;
             }
+
+            .chat_user-connected {
+                text-align: center;
+                width: 100%;
+                color: #000;
+                text-transform: uppercase;
+                font-size: 10px;
+            }
         </style>
     </head>
     <body id="chat">    
@@ -190,37 +198,43 @@
                             <i class="material-icons">more_vert</i>
                         </button>
                         <ul class="mdl-menu mdl-js-menu mdl-js-ripple-effect mdl-menu--bottom-right" for="hdrbtn">
-                            <li class="mdl-menu__item">Show User List</li>
+                            <li class="mdl-menu__item" v-click="displayUserList()">Show User List</li>
                             <li class="mdl-menu__item">Pop Out</li>
                         </ul>
                     </div>
                 </header>
                 <main>
                     <div id="inner" class="inner">
-                        <div id="users"></div>
+                        <div id="users" style="display:none;"></div>
+
                         <div id="content" class="content">
 
-                            <div class="vue-chat-wrapper" v-repeat="message: messages">
-                                <div class="message-wrapper me" v-if="isPoster(message[0])">
-                                    <div class="circle-wrapper"></div>
-                                    <div class="text-wrapper">@{{ message[1] }}</div>
+                            <div v-for="message in messages">
+
+                                <div v-if="isNotification(message[0])">
+                                    <div id="user_connected" class="chat_user-connected">
+                                        @{{ message[1] }}
+                                    </div>
                                 </div>
-                                <div class="message-wrapper them" v-if="!isPoster(message[0])">
-                                    <div class="circle-wrapper"></div>
-                                    <div class="text-wrapper">@{{ message[1] }}</div>
+
+                                <div v-if="!isNotification(message[0])">
+                                    <div class="message-wrapper me" v-if="isPoster(message[1])">
+                                        <div class="circle-wrapper"></div>
+                                        <div class="text-wrapper">@{{ message[2] }}</div>
+                                    </div>
+                                    <div class="message-wrapper them" v-if="!isPoster(message[1])">
+                                        <div class="circle-wrapper"></div>
+                                        <div class="text-wrapper">@{{ message[2] }}</div>
+                                    </div>
                                 </div>
                             </div>
-                            
 
-                            <!-- <div class="message-wrapper them" v-else v-repeat="message: messages[2]">
-                                <div class="circle-wrapper"></div>
-                                <div class="text-wrapper">@{{ message }}</div>
-                            </div> -->
+                            
 
                             <div id="loader" class="mdl-spinner mdl-js-spinner is-active" style="width: 50px; height: 50px;"></div>
                         </div>
                     </div>
-                    <form id="bottom" class="bottom" v-on="submit: send">
+                    <form id="bottom" class="bottom" v-on:submit="send">
                         <div class="chat_message mdl-textfield mdl-js-textfield">
                             <input type="text" class="mdl-textfield__input" id="message" placeholder="message..." rows="1" v-model="message">
                         </div>
@@ -233,14 +247,14 @@
 
 
         <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.7/socket.io.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/0.12.15/vue.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/1.0.12/vue.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0-alpha1/jquery.min.js"></script>
 
         <script>
             var socket = io('http://larachat.dev:3000');
-            var channel = "SOME_CHANNEL"
-            var userId  = "2"
-            var userName = "SOME_NAME"
+            var channel = "SOME_CHANNEL";
+            var userId  = "2";
+            var userName = "SOME_NAME";
 
             var $chatUsers = $("#users");
 
@@ -273,35 +287,58 @@
                     });
 
                     socket.on('chat.' + channel, function(payload) {
-                        this.messages.push([payload[1], payload[2]]);
+                        this.messages.push(['chat', payload[1], payload[2]]);
                     }.bind(this));
 
-                    socket.on('chat.' + channel + '.users', function(names) {
-                        console.log(names);
+                    // socket.on('chat.' + channel + '.users', function(names) {
+                    //     console.log(names);
+                    //     // var html = "";
 
-                        var html = "";
+                    //     // $.each(names, function(index, value) {
+                    //     //     html += '<li>' + value.name + '</li>'
+                    //     // });
 
-                        $.each(names, function(index, value) {
-                            html += '<li>' + value.name + '</li>'
-                        });
+                    //     // $chatUsers.html(html);
+                    // });
 
-                        $chatUsers.html(html);
-                    });
+                    socket.on('chat.' + channel + '.notifications', function(message) {
+                        this.messages.push(['notification', message]);
+                    }.bind(this));
                 },
 
                 methods: {
 
                     send: function(e) {
+                        e.preventDefault();
+
                         var payload = [channel, userId, this.message];
+                        if(this.message == '') {
+                            this.message = null;
+                        }
+
                         if(this.message !== null) {
+                            e.preventDefault();
                             socket.emit('chat', payload);
                         }
-                        this.message = null;
                         e.preventDefault();
+                        this.message = null;
+                        
                     },
 
                     isPoster: function(id) {
                         if(userId === id) {
+                            return true;
+                        }
+
+                        return false;
+                    },
+
+                    displayUserList: function(e) {
+                        $('users').style('display:block;');
+                    },
+
+                    isNotification: function(message) {
+                        if(message === "notification") {
                             return true;
                         }
 
